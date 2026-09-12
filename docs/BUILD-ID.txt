@@ -1,0 +1,25 @@
+Build identifier - check this FIRST if anything seems out of sync with
+what a report claims.
+
+Build: step08-2026-08-27
+Contains: STEP 02 foundation + STEP 03 database (10 migrations) +
+          STEP 04 Sanctum auth (11th migration) + STEP 05 authorization
+          + STEP 06 Room Type Management (12th migration) +
+          STEP 07 Room Management (13th migration, + fixture fixes) +
+          STEP 08 Room Type Image Management (no new migration - schema
+          already sufficient; 31 new tests)
+
+Fingerprint checks:
+  ls database/migrations/ | wc -l                                  -> 13 (unchanged from STEP 07)
+  grep -c "^test(" tests/Feature/RoomImage/PublicRoomImageTest.php -> 5
+  grep -c "^test(" tests/Feature/RoomImage/StaffRoomImageTest.php  -> 26
+  ls app/Models/RoomImage.php                                       -> exists
+  ls app/Services/RoomImageService.php                              -> exists
+  ls app/Policies/RoomImagePolicy.php                               -> exists
+  grep -c "function images()" app/Models/RoomType.php                -> 1
+
+Total tests across the whole suite as of this build: 178
+(147 from STEP 02-07 + 5 public room-image + 26 staff room-image)
+
+If ANY of these don't match: delete this entire local folder and
+re-extract a FRESH copy of the zip.
