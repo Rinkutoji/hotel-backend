@@ -32,6 +32,11 @@ class Invoice extends Model
         return $this->belongsTo(Payment::class);
     }
 
+    public function scopeByProperty($query, int $propertyId)
+    {
+        return $query->whereHas('payment.booking.bookingRooms.room.building', fn ($q) => $q->where('property_id', $propertyId));
+    }
+
     // STEP 16 - D-3 (approved): billing line-item snapshots persisted at
     // issuance so the document never re-reads mutable room/type values.
     public function items()

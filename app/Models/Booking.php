@@ -75,4 +75,25 @@ class Booking extends Model
     {
         return $this->hasOne(Payment::class);
     }
+
+    public function scopeByProperty($query, int $propertyId)
+    {
+        return $query->whereHas('bookingRooms.room.building', fn ($q) => $q->where('property_id', $propertyId));
+    }
+
+    public function scopeByBuilding($query, int $buildingId)
+    {
+        return $query->whereHas('bookingRooms.room', fn ($q) => $q->where('building_id', $buildingId));
+    }
+
+    public function scopeByRoomType($query, int $roomTypeId)
+    {
+        return $query->whereHas('bookingRooms', fn ($q) => $q->where('room_type_id', $roomTypeId));
+    }
+
+    /** Property id of the booking's first room's building, or null. */
+    public function propertyId(): ?int
+    {
+        return $this->bookingRooms()->with('room.building')->first()?->room?->building?->property_id;
+    }
 }

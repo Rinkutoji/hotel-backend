@@ -34,6 +34,16 @@ class Payment extends Model
         return $this->belongsTo(Booking::class);
     }
 
+    public function scopeByProperty($query, int $propertyId)
+    {
+        return $query->whereHas('booking.bookingRooms.room.building', fn ($q) => $q->where('property_id', $propertyId));
+    }
+
+    public function propertyId(): ?int
+    {
+        return $this->booking?->propertyId();
+    }
+
     public function verifiedBy()
     {
         return $this->belongsTo(Employee::class, 'verified_by')->withTrashed();
