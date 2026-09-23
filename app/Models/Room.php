@@ -21,6 +21,7 @@ class Room extends Model
     protected $fillable = [
         'room_number',
         'room_type_id',
+        'building_id',
         'floor',
     ];
 
@@ -36,6 +37,18 @@ class Room extends Model
     public function roomType()
     {
         return $this->belongsTo(RoomType::class);
+    }
+
+    public function building()
+    {
+        return $this->belongsTo(Building::class);
+    }
+
+    // Explicit keys: rooms holds building_id (FK to buildings.id), not the
+    // through table - default inference would use the wrong columns.
+    public function property()
+    {
+        return $this->hasOneThrough(Property::class, Building::class, 'id', 'id', 'building_id', 'property_id');
     }
 
     public function statusLogs()
