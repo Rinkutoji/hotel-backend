@@ -10,7 +10,7 @@ test('an admin can create a room', function () {
 
     $response = $this->withHeader('Authorization', "Bearer {$token}")
         ->postJson('/api/v1/staff/rooms', [
-            'room_number' => '101', 'room_type_id' => $type->id, 'floor' => 1,
+            'room_number' => '101', 'room_type_id' => $type->id, 'floor' => 1, 'building_id' => makeBuilding()->id,
         ]);
 
     $response->assertStatus(201);
@@ -25,7 +25,7 @@ test('a manager can create a room', function () {
 
     $this->withHeader('Authorization', "Bearer {$token}")
         ->postJson('/api/v1/staff/rooms', [
-            'room_number' => '102', 'room_type_id' => $type->id, 'floor' => 1,
+            'room_number' => '102', 'room_type_id' => $type->id, 'floor' => 1, 'building_id' => makeBuilding()->id,
         ])
         ->assertStatus(201);
 });
@@ -63,7 +63,7 @@ test('an admin can update a room', function () {
 
     $response = $this->withHeader('Authorization', "Bearer {$token}")
         ->putJson("/api/v1/staff/rooms/{$room->id}", [
-            'room_number' => '202', 'room_type_id' => $type->id, 'floor' => 2,
+            'room_number' => '202', 'room_type_id' => $type->id, 'floor' => 2, 'building_id' => makeBuilding()->id,
         ]);
 
     $response->assertStatus(200);
@@ -77,7 +77,7 @@ test('a manager can update a room', function () {
 
     $this->withHeader('Authorization', "Bearer {$token}")
         ->putJson("/api/v1/staff/rooms/{$room->id}", [
-            'room_number' => '204', 'room_type_id' => $type->id, 'floor' => 2,
+            'room_number' => '204', 'room_type_id' => $type->id, 'floor' => 2, 'building_id' => makeBuilding()->id,
         ])
         ->assertStatus(200);
 });
@@ -135,20 +135,26 @@ test('creating a room with a duplicate active room_number fails validation', fun
     $token = loginAsEmployee($this, 'admin-dup@example.com', 'admin');
 
     $this->withHeader('Authorization', "Bearer {$token}")
-        ->postJson('/api/v1/staff/rooms', ['room_number' => 'DUP-1', 'room_type_id' => $type->id, 'floor' => 2])
+        ->postJson('/api/v1/staff/rooms', ['room_number' => 'DUP-1', 'room_type_id' => $type->id, 'floor' => 2, 'building_id' => makeBuilding()->id])
         ->assertStatus(422)
         ->assertJsonValidationErrors('room_number');
 });
 
-test('a soft-deleted room_number CAN be reused by a new room', function () {
+test('a soft-deleted room_number can be reused in a different building but not the same building', function () {
     $type = makeRoomType();
-    $original = Room::create(['room_number' => 'REUSE-1', 'room_type_id' => $type->id, 'floor' => 1, 'building_id' => makeBuilding()->id]);
+    $building = makeBuilding();
+    $original = Room::create(['room_number' => 'REUSE-1', 'room_type_id' => $type->id, 'floor' => 1, 'building_id' => $building->id]);
     $original->delete();
 
     $token = loginAsEmployee($this, 'admin-reuse@example.com', 'admin');
 
     $this->withHeader('Authorization', "Bearer {$token}")
-        ->postJson('/api/v1/staff/rooms', ['room_number' => 'REUSE-1', 'room_type_id' => $type->id, 'floor' => 1])
+        ->postJson('/api/v1/staff/rooms', ['room_number' => 'REUSE-1', 'room_type_id' => $type->id, 'floor' => 1, 'building_id' => $building->id])
+        ->assertStatus(422)
+        ->assertJsonValidationErrors('room_number');
+
+    $this->withHeader('Authorization', "Bearer {$token}")
+        ->postJson('/api/v1/staff/rooms', ['room_number' => 'REUSE-1', 'room_type_id' => $type->id, 'floor' => 1, 'building_id' => makeBuilding('WEST')->id])
         ->assertStatus(201);
 });
 
@@ -156,7 +162,7 @@ test('creating a room with a non-existent room_type_id fails validation', functi
     $token = loginAsEmployee($this, 'admin-badtype@example.com', 'admin');
 
     $this->withHeader('Authorization', "Bearer {$token}")
-        ->postJson('/api/v1/staff/rooms', ['room_number' => 'X1', 'room_type_id' => 999999, 'floor' => 1])
+        ->postJson('/api/v1/staff/rooms', ['room_number' => 'X1', 'room_type_id' => 999999, 'floor' => 1, 'building_id' => makeBuilding()->id])
         ->assertStatus(422)
         ->assertJsonValidationErrors('room_type_id');
 });
@@ -167,7 +173,7 @@ test('a room cannot be created referencing a soft-deleted room type', function (
     $token = loginAsEmployee($this, 'admin-deletedtype@example.com', 'admin');
 
     $this->withHeader('Authorization', "Bearer {$token}")
-        ->postJson('/api/v1/staff/rooms', ['room_number' => 'X2', 'room_type_id' => $type->id, 'floor' => 1])
+        ->postJson('/api/v1/staff/rooms', ['room_number' => 'X2', 'room_type_id' => $type->id, 'floor' => 1, 'building_id' => makeBuilding()->id])
         ->assertStatus(422)
         ->assertJsonValidationErrors('room_type_id');
 });
@@ -177,14 +183,46 @@ test('floor must be a positive integer within a reasonable range', function () {
     $token = loginAsEmployee($this, 'admin-badfloor@example.com', 'admin');
 
     $this->withHeader('Authorization', "Bearer {$token}")
-        ->postJson('/api/v1/staff/rooms', ['room_number' => 'X3', 'room_type_id' => $type->id, 'floor' => 0])
+        ->postJson('/api/v1/staff/rooms', ['room_number' => 'X3', 'room_type_id' => $type->id, 'floor' => 0, 'building_id' => makeBuilding()->id])
         ->assertStatus(422)
         ->assertJsonValidationErrors('floor');
 
     $this->withHeader('Authorization', "Bearer {$token}")
-        ->postJson('/api/v1/staff/rooms', ['room_number' => 'X4', 'room_type_id' => $type->id, 'floor' => -1])
+        ->postJson('/api/v1/staff/rooms', ['room_number' => 'X4', 'room_type_id' => $type->id, 'floor' => -1, 'building_id' => makeBuilding()->id])
         ->assertStatus(422)
         ->assertJsonValidationErrors('floor');
+});
+
+test('creating a room without a building_id fails validation', function () {
+    $type = makeRoomType();
+    $token = loginAsEmployee($this, 'admin-nobuilding@example.com', 'admin');
+
+    $this->withHeader('Authorization', "Bearer {$token}")
+        ->postJson('/api/v1/staff/rooms', ['room_number' => 'NB1', 'room_type_id' => $type->id, 'floor' => 1])
+        ->assertStatus(422)
+        ->assertJsonValidationErrors('building_id');
+});
+
+test('creating a room with a nonexistent building_id fails validation', function () {
+    $type = makeRoomType();
+    $token = loginAsEmployee($this, 'admin-badbuilding@example.com', 'admin');
+
+    $this->withHeader('Authorization', "Bearer {$token}")
+        ->postJson('/api/v1/staff/rooms', ['room_number' => 'NB2', 'room_type_id' => $type->id, 'floor' => 1, 'building_id' => 999999])
+        ->assertStatus(422)
+        ->assertJsonValidationErrors('building_id');
+});
+
+test('creating a room with a soft-deleted building_id fails validation', function () {
+    $type = makeRoomType();
+    $building = makeBuilding('DOOMED');
+    $building->delete();
+    $token = loginAsEmployee($this, 'admin-deletedbuilding@example.com', 'admin');
+
+    $this->withHeader('Authorization', "Bearer {$token}")
+        ->postJson('/api/v1/staff/rooms', ['room_number' => 'NB3', 'room_type_id' => $type->id, 'floor' => 1, 'building_id' => $building->id])
+        ->assertStatus(422)
+        ->assertJsonValidationErrors('building_id');
 });
 
 test('a client-supplied status field is silently ignored on create - always starts available', function () {
@@ -193,7 +231,7 @@ test('a client-supplied status field is silently ignored on create - always star
 
     $response = $this->withHeader('Authorization', "Bearer {$token}")
         ->postJson('/api/v1/staff/rooms', [
-            'room_number' => 'X5', 'room_type_id' => $type->id, 'floor' => 1, 'status' => 'occupied',
+            'room_number' => 'X5', 'room_type_id' => $type->id, 'floor' => 1, 'status' => 'occupied', 'building_id' => makeBuilding()->id,
         ]);
 
     $response->assertStatus(201);
@@ -207,7 +245,7 @@ test('a client-supplied status field is silently ignored on update - no arbitrar
 
     $response = $this->withHeader('Authorization', "Bearer {$token}")
         ->putJson("/api/v1/staff/rooms/{$room->id}", [
-            'room_number' => 'X6', 'room_type_id' => $type->id, 'floor' => 1, 'status' => 'occupied',
+            'room_number' => 'X6', 'room_type_id' => $type->id, 'floor' => 1, 'status' => 'occupied', 'building_id' => makeBuilding()->id,
         ]);
 
     $response->assertStatus(200);

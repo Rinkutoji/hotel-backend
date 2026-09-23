@@ -18,7 +18,7 @@ test('a room cannot be created referencing a soft-deleted room type', function (
     $token = loginAsEmployee($this, 'admin-retiredtype@example.com', 'admin');
 
     $this->withHeader('Authorization', "Bearer {$token}")
-        ->postJson('/api/v1/staff/rooms', ['room_number' => 'R2', 'room_type_id' => $type->id, 'floor' => 1])
+        ->postJson('/api/v1/staff/rooms', ['room_number' => 'R2', 'room_type_id' => $type->id, 'floor' => 1, 'building_id' => makeBuilding()->id])
         ->assertStatus(422)
         ->assertJsonValidationErrors('room_type_id');
 });

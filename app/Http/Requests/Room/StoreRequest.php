@@ -17,11 +17,19 @@ class StoreRequest extends ApiFormRequest
     public function rules(): array
     {
         return [
+            'building_id' => [
+                'required', 'integer',
+                // A room can never be created in a deleted building.
+                Rule::exists('buildings', 'id')->whereNull('deleted_at'),
+            ],
             'room_number' => [
                 'required', 'string', 'max:50',
-                // Scoped to active rows only - see the schema fix in
-                // docs/STEP-07-ROOM-PLAN.md §0.
-                Rule::unique('rooms', 'room_number')->whereNull('deleted_at'),
+                // Scoped per building INCLUDING soft-deleted rows - mirrors
+                // the DB composite unique(building_id, room_number), so a
+                // soft-deleted number is rejected here (422) instead of
+                // dying as a QueryException at insert.
+                Rule::unique('rooms', 'room_number')
+                    ->where('building_id', $this->input('building_id')),
             ],
             'room_type_id' => [
                 'required', 'integer',

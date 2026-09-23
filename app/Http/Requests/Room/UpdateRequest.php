@@ -15,11 +15,20 @@ class UpdateRequest extends ApiFormRequest
     public function rules(): array
     {
         return [
+            'building_id' => [
+                'required', 'integer',
+                // A room can never be moved into a deleted building.
+                Rule::exists('buildings', 'id')->whereNull('deleted_at'),
+            ],
             'room_number' => [
                 'required', 'string', 'max:50',
+                // Scoped per building INCLUDING soft-deleted rows - mirrors
+                // the DB composite unique(building_id, room_number), so a
+                // soft-deleted number is rejected here (422) instead of
+                // dying as a QueryException at insert.
                 Rule::unique('rooms', 'room_number')
-                    ->ignore($this->route('room'))
-                    ->whereNull('deleted_at'),
+                    ->where('building_id', $this->input('building_id'))
+                    ->ignore($this->route('room')),
             ],
             'room_type_id' => [
                 'required', 'integer',
