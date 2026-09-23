@@ -260,20 +260,20 @@ test('the sweep never makes reserved, occupied, maintenance or available rooms a
     $type = makeRoomType('TurnoverLiveGuard');
     $base = ['room_type_id' => $type->id];
 
-    $available = Room::create(['room_number' => 'TO13a', ...$base, 'floor' => 1]);
-    $reserved = Room::create(['room_number' => 'TO13b', ...$base, 'floor' => 1]);
+    $available = Room::create(['room_number' => 'TO13a', ...$base, 'floor' => 1, 'building_id' => makeBuilding()->id]);
+    $reserved = Room::create(['room_number' => 'TO13b', ...$base, 'floor' => 1, 'building_id' => makeBuilding()->id]);
     $reserved->status = 'reserved';
     $reserved->status_changed_at = now()->subHours(2);
     $reserved->save();
-    $occupied = Room::create(['room_number' => 'TO13c', ...$base, 'floor' => 1]);
+    $occupied = Room::create(['room_number' => 'TO13c', ...$base, 'floor' => 1, 'building_id' => makeBuilding()->id]);
     $occupied->status = 'occupied';
     $occupied->status_changed_at = now()->subHours(2);
     $occupied->save();
-    $maintenance = Room::create(['room_number' => 'TO13d', ...$base, 'floor' => 1]);
+    $maintenance = Room::create(['room_number' => 'TO13d', ...$base, 'floor' => 1, 'building_id' => makeBuilding()->id]);
     $maintenance->status = 'maintenance';
     $maintenance->status_changed_at = now()->subHours(2);
     $maintenance->save();
-    $availableOld = Room::create(['room_number' => 'TO13e', ...$base, 'floor' => 1]);
+    $availableOld = Room::create(['room_number' => 'TO13e', ...$base, 'floor' => 1, 'building_id' => makeBuilding()->id]);
     $availableOld->status_changed_at = now()->subHours(2);
     $availableOld->save();
 

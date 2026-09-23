@@ -58,7 +58,7 @@ test('a customer cannot access any staff room management route', function () {
 
 test('an admin can update a room', function () {
     $type = makeRoomType();
-    $room = Room::create(['room_number' => '201', 'room_type_id' => $type->id, 'floor' => 2]);
+    $room = Room::create(['room_number' => '201', 'room_type_id' => $type->id, 'floor' => 2, 'building_id' => makeBuilding()->id]);
     $token = loginAsEmployee($this, 'admin-update@example.com', 'admin');
 
     $response = $this->withHeader('Authorization', "Bearer {$token}")
@@ -72,7 +72,7 @@ test('an admin can update a room', function () {
 
 test('a manager can update a room', function () {
     $type = makeRoomType();
-    $room = Room::create(['room_number' => '203', 'room_type_id' => $type->id, 'floor' => 2]);
+    $room = Room::create(['room_number' => '203', 'room_type_id' => $type->id, 'floor' => 2, 'building_id' => makeBuilding()->id]);
     $token = loginAsEmployee($this, 'mgr-update@example.com', 'manager');
 
     $this->withHeader('Authorization', "Bearer {$token}")
@@ -84,7 +84,7 @@ test('a manager can update a room', function () {
 
 test('a receptionist cannot update a room', function () {
     $type = makeRoomType();
-    $room = Room::create(['room_number' => '205', 'room_type_id' => $type->id, 'floor' => 2]);
+    $room = Room::create(['room_number' => '205', 'room_type_id' => $type->id, 'floor' => 2, 'building_id' => makeBuilding()->id]);
     $token = loginAsEmployee($this, 'recep-update@example.com', 'receptionist');
 
     $this->withHeader('Authorization', "Bearer {$token}")
@@ -96,7 +96,7 @@ test('a receptionist cannot update a room', function () {
 
 test('an admin can delete a room (soft delete, not hard delete)', function () {
     $type = makeRoomType();
-    $room = Room::create(['room_number' => '301', 'room_type_id' => $type->id, 'floor' => 3]);
+    $room = Room::create(['room_number' => '301', 'room_type_id' => $type->id, 'floor' => 3, 'building_id' => makeBuilding()->id]);
     $token = loginAsEmployee($this, 'admin-delete@example.com', 'admin');
 
     $this->withHeader('Authorization', "Bearer {$token}")
@@ -109,7 +109,7 @@ test('an admin can delete a room (soft delete, not hard delete)', function () {
 
 test('a manager can delete a room', function () {
     $type = makeRoomType();
-    $room = Room::create(['room_number' => '302', 'room_type_id' => $type->id, 'floor' => 3]);
+    $room = Room::create(['room_number' => '302', 'room_type_id' => $type->id, 'floor' => 3, 'building_id' => makeBuilding()->id]);
     $token = loginAsEmployee($this, 'mgr-delete@example.com', 'manager');
 
     $this->withHeader('Authorization', "Bearer {$token}")
@@ -119,7 +119,7 @@ test('a manager can delete a room', function () {
 
 test('a receptionist cannot delete a room', function () {
     $type = makeRoomType();
-    $room = Room::create(['room_number' => '303', 'room_type_id' => $type->id, 'floor' => 3]);
+    $room = Room::create(['room_number' => '303', 'room_type_id' => $type->id, 'floor' => 3, 'building_id' => makeBuilding()->id]);
     $token = loginAsEmployee($this, 'recep-delete@example.com', 'receptionist');
 
     $this->withHeader('Authorization', "Bearer {$token}")
@@ -131,7 +131,7 @@ test('a receptionist cannot delete a room', function () {
 
 test('creating a room with a duplicate active room_number fails validation', function () {
     $type = makeRoomType();
-    Room::create(['room_number' => 'DUP-1', 'room_type_id' => $type->id, 'floor' => 1]);
+    Room::create(['room_number' => 'DUP-1', 'room_type_id' => $type->id, 'floor' => 1, 'building_id' => makeBuilding()->id]);
     $token = loginAsEmployee($this, 'admin-dup@example.com', 'admin');
 
     $this->withHeader('Authorization', "Bearer {$token}")
@@ -142,7 +142,7 @@ test('creating a room with a duplicate active room_number fails validation', fun
 
 test('a soft-deleted room_number CAN be reused by a new room', function () {
     $type = makeRoomType();
-    $original = Room::create(['room_number' => 'REUSE-1', 'room_type_id' => $type->id, 'floor' => 1]);
+    $original = Room::create(['room_number' => 'REUSE-1', 'room_type_id' => $type->id, 'floor' => 1, 'building_id' => makeBuilding()->id]);
     $original->delete();
 
     $token = loginAsEmployee($this, 'admin-reuse@example.com', 'admin');
@@ -202,7 +202,7 @@ test('a client-supplied status field is silently ignored on create - always star
 
 test('a client-supplied status field is silently ignored on update - no arbitrary status change via PUT', function () {
     $type = makeRoomType();
-    $room = Room::create(['room_number' => 'X6', 'room_type_id' => $type->id, 'floor' => 1]);
+    $room = Room::create(['room_number' => 'X6', 'room_type_id' => $type->id, 'floor' => 1, 'building_id' => makeBuilding()->id]);
     $token = loginAsEmployee($this, 'admin-statusinject-update@example.com', 'admin');
 
     $response = $this->withHeader('Authorization', "Bearer {$token}")
@@ -219,9 +219,9 @@ test('a client-supplied status field is silently ignored on update - no arbitrar
 
 test('search filters rooms by room_number', function () {
     $type = makeRoomType();
-    Room::create(['room_number' => 'A100', 'room_type_id' => $type->id, 'floor' => 1]);
-    Room::create(['room_number' => 'A200', 'room_type_id' => $type->id, 'floor' => 2]);
-    Room::create(['room_number' => 'B100', 'room_type_id' => $type->id, 'floor' => 1]);
+    Room::create(['room_number' => 'A100', 'room_type_id' => $type->id, 'floor' => 1, 'building_id' => makeBuilding()->id]);
+    Room::create(['room_number' => 'A200', 'room_type_id' => $type->id, 'floor' => 2, 'building_id' => makeBuilding()->id]);
+    Room::create(['room_number' => 'B100', 'room_type_id' => $type->id, 'floor' => 1, 'building_id' => makeBuilding()->id]);
 
     $response = $this->getJson('/api/v1/public/rooms?search=A');
 
@@ -231,8 +231,8 @@ test('search filters rooms by room_number', function () {
 test('filtering by room_type_id works', function () {
     $typeA = makeRoomType('Type A');
     $typeB = makeRoomType('Type B');
-    Room::create(['room_number' => 'F1', 'room_type_id' => $typeA->id, 'floor' => 1]);
-    Room::create(['room_number' => 'F2', 'room_type_id' => $typeB->id, 'floor' => 1]);
+    Room::create(['room_number' => 'F1', 'room_type_id' => $typeA->id, 'floor' => 1, 'building_id' => makeBuilding()->id]);
+    Room::create(['room_number' => 'F2', 'room_type_id' => $typeB->id, 'floor' => 1, 'building_id' => makeBuilding()->id]);
 
     $response = $this->getJson("/api/v1/public/rooms?room_type_id={$typeA->id}");
 
@@ -242,8 +242,8 @@ test('filtering by room_type_id works', function () {
 
 test('filtering by floor works', function () {
     $type = makeRoomType();
-    Room::create(['room_number' => 'G1', 'room_type_id' => $type->id, 'floor' => 1]);
-    Room::create(['room_number' => 'G2', 'room_type_id' => $type->id, 'floor' => 2]);
+    Room::create(['room_number' => 'G1', 'room_type_id' => $type->id, 'floor' => 1, 'building_id' => makeBuilding()->id]);
+    Room::create(['room_number' => 'G2', 'room_type_id' => $type->id, 'floor' => 2, 'building_id' => makeBuilding()->id]);
 
     $response = $this->getJson('/api/v1/public/rooms?floor=2');
 
@@ -253,8 +253,8 @@ test('filtering by floor works', function () {
 
 test('filtering by status works', function () {
     $type = makeRoomType();
-    $room = Room::create(['room_number' => 'H1', 'room_type_id' => $type->id, 'floor' => 1]);
-    Room::create(['room_number' => 'H2', 'room_type_id' => $type->id, 'floor' => 1]);
+    $room = Room::create(['room_number' => 'H1', 'room_type_id' => $type->id, 'floor' => 1, 'building_id' => makeBuilding()->id]);
+    Room::create(['room_number' => 'H2', 'room_type_id' => $type->id, 'floor' => 1, 'building_id' => makeBuilding()->id]);
     $room->status = 'maintenance';
     $room->save();
 
@@ -267,8 +267,8 @@ test('filtering by status works', function () {
 
 test('sorting by an allowed field works', function () {
     $type = makeRoomType();
-    Room::create(['room_number' => 'Z1', 'room_type_id' => $type->id, 'floor' => 9]);
-    Room::create(['room_number' => 'A1', 'room_type_id' => $type->id, 'floor' => 1]);
+    Room::create(['room_number' => 'Z1', 'room_type_id' => $type->id, 'floor' => 9, 'building_id' => makeBuilding()->id]);
+    Room::create(['room_number' => 'A1', 'room_type_id' => $type->id, 'floor' => 1, 'building_id' => makeBuilding()->id]);
 
     $response = $this->getJson('/api/v1/public/rooms?sort=floor&direction=asc');
 
@@ -276,7 +276,7 @@ test('sorting by an allowed field works', function () {
 });
 
 test('an invalid sort field is rejected by validation', function () {
-    $response = $this->getJson('/api/v1/public/rooms?sort=' . urlencode('id; DROP TABLE rooms;--'));
+    $response = $this->getJson('/api/v1/public/rooms?sort='.urlencode('id; DROP TABLE rooms;--'));
 
     $response->assertStatus(422);
 });
@@ -284,7 +284,7 @@ test('an invalid sort field is rejected by validation', function () {
 test('pagination respects a custom per_page and reports total correctly', function () {
     $type = makeRoomType();
     foreach (range(1, 5) as $i) {
-        Room::create(['room_number' => "P{$i}", 'room_type_id' => $type->id, 'floor' => 1]);
+        Room::create(['room_number' => "P{$i}", 'room_type_id' => $type->id, 'floor' => 1, 'building_id' => makeBuilding()->id]);
     }
 
     $response = $this->getJson('/api/v1/public/rooms?per_page=2');
@@ -301,7 +301,7 @@ test('per_page above the safe maximum is rejected by validation', function () {
 
 test('staff cannot view, update, or delete an already soft-deleted room', function () {
     $type = makeRoomType();
-    $room = Room::create(['room_number' => 'GONE1', 'room_type_id' => $type->id, 'floor' => 1]);
+    $room = Room::create(['room_number' => 'GONE1', 'room_type_id' => $type->id, 'floor' => 1, 'building_id' => makeBuilding()->id]);
     $room->delete();
     $token = loginAsEmployee($this, 'admin-deleted404@example.com', 'admin');
 

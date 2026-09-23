@@ -1,9 +1,18 @@
 <?php
 
+use App\Models\Booking;
+use App\Models\BookingRoom;
+use App\Models\Building;
 use App\Models\Customer;
+use App\Models\Discount;
 use App\Models\Employee;
+use App\Models\Payment;
+use App\Models\Property;
+use App\Models\Room;
 use App\Models\RoomType;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
 uses(TestCase::class)->in('Feature', 'Unit');
@@ -54,6 +63,30 @@ function makeRoomType(string $name = 'Standard'): RoomType
     return RoomType::create(['name' => $name, 'base_price' => 100, 'capacity_adults' => 2]);
 }
 
+// STEP 12: rooms.building_id is NOT NULL (migration 2025_03_01_000003, which
+// also seeds a MAIN property + MAIN building) - helpers shared across the
+// whole suite. firstOrCreate finds the seeded rows; never create duplicate
+// 'MAIN' rows. No static cache - firstOrCreate against the fresh test DB
+// only (RefreshDatabase wipes rows between tests but static state would
+// survive the process).
+function makeProperty(string $code = 'MAIN', string $name = 'Main Hotel'): Property
+{
+    return Property::firstOrCreate(
+        ['code' => $code],
+        ['name' => $name, 'status' => 'active'],
+    );
+}
+
+function makeBuilding(?string $code = null, ?int $propertyId = null): Building
+{
+    $propertyId ??= makeProperty()->id;
+
+    return Building::firstOrCreate(
+        ['property_id' => $propertyId, 'code' => $code ?? 'MAIN'],
+        ['name' => 'Main Building', 'status' => 'active'],
+    );
+}
+
 // STEP 09: booking helpers - shared across every file in tests/Feature/Booking/.
 
 function makeBookingCustomer(string $email = 'guest@example.com'): Customer
@@ -63,17 +96,18 @@ function makeBookingCustomer(string $email = 'guest@example.com'): Customer
     ]);
 }
 
-function makeBookingRoom(string $number, int $roomTypeId, int $floor = 1): \App\Models\Room
+function makeBookingRoom(string $number, int $roomTypeId, int $floor = 1): Room
 {
-    return \App\Models\Room::create([
+    return Room::create([
         'room_number' => $number, 'room_type_id' => $roomTypeId, 'floor' => $floor,
+        'building_id' => makeBuilding()->id,
     ]);
 }
 
-function makeHoldingBooking(Customer $customer, \App\Models\Room $room, string $checkIn, string $checkOut, string $status = 'confirmed', bool $expired = false): \App\Models\Booking
+function makeHoldingBooking(Customer $customer, Room $room, string $checkIn, string $checkOut, string $status = 'confirmed', bool $expired = false): Booking
 {
-    $booking = \App\Models\Booking::create([
-        'booking_number' => 'BK-TEST' . strtoupper(uniqid()),
+    $booking = Booking::create([
+        'booking_number' => 'BK-TEST'.strtoupper(uniqid()),
         'customer_id' => $customer->id,
         'check_in_date' => $checkIn,
         'check_out_date' => $checkOut,
@@ -86,7 +120,7 @@ function makeHoldingBooking(Customer $customer, \App\Models\Room $room, string $
     $booking->status = $status;
     $booking->save();
 
-    \App\Models\BookingRoom::create([
+    BookingRoom::create([
         'booking_id' => $booking->id,
         'room_id' => $room->id,
         'room_type_id' => $room->room_type_id,
@@ -96,7 +130,7 @@ function makeHoldingBooking(Customer $customer, \App\Models\Room $room, string $
     return $booking;
 }
 
-function postAvailability(array $payload): \Illuminate\Testing\TestResponse
+function postAvailability(array $payload): TestResponse
 {
     return test()->postJson('/api/v1/public/availability', $payload);
 }
@@ -109,7 +143,7 @@ function postAvailability(array $payload): \Illuminate\Testing\TestResponse
  * accepts it. $padding lets tests build a real-PDF header big enough to
  * trip the size cap without failing the mime check.
  */
-function fakeReceiptFile(string $name, string $padding = ''): \Illuminate\Http\UploadedFile
+function fakeReceiptFile(string $name, string $padding = ''): UploadedFile
 {
     $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
 
@@ -120,7 +154,7 @@ function fakeReceiptFile(string $name, string $padding = ''): \Illuminate\Http\U
         default => "%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\n",
     };
 
-    return \Illuminate\Http\UploadedFile::fake()->createWithContent($name, $header . $padding);
+    return UploadedFile::fake()->createWithContent($name, $header.$padding);
 }
 
 /**
@@ -128,13 +162,13 @@ function fakeReceiptFile(string $name, string $padding = ''): \Illuminate\Http\U
  * makeHoldingBooking: status is outside $fillable, set explicitly.
  */
 function makePaymentFor(
-    \App\Models\Booking $booking,
+    Booking $booking,
     string $status = 'pending',
     string $method = 'bank_transfer',
     ?string $receiptPath = null,
     ?string $notes = null
-): \App\Models\Payment {
-    $payment = new \App\Models\Payment(['method' => $method]);
+): Payment {
+    $payment = new Payment(['method' => $method]);
     $payment->booking_id = $booking->id;
     $payment->amount = $booking->total_amount;
     $payment->status = $status;
@@ -149,14 +183,14 @@ function makePaymentFor(
 // SNAPSHOTS and its rooms already 'reserved' (mirrors what
 // confirmWithinTransaction produces). $rooms expects [Room, string|float].
 function makeConfirmedBookingWithRooms(
-    \App\Models\Customer $customer,
+    Customer $customer,
     string $checkIn,
     string $checkOut,
     array $rooms,
     string $totalAmount = '200.00'
-): \App\Models\Booking {
-    $booking = \App\Models\Booking::create([
-        'booking_number' => 'BK-TEST' . strtoupper(uniqid()),
+): Booking {
+    $booking = Booking::create([
+        'booking_number' => 'BK-TEST'.strtoupper(uniqid()),
         'customer_id' => $customer->id,
         'check_in_date' => $checkIn,
         'check_out_date' => $checkOut,
@@ -168,7 +202,7 @@ function makeConfirmedBookingWithRooms(
     $booking->save();
 
     foreach ($rooms as [$room, $pricePerNight]) {
-        \App\Models\BookingRoom::create([
+        BookingRoom::create([
             'booking_id' => $booking->id,
             'room_id' => $room->id,
             'room_type_id' => $room->room_type_id,
@@ -185,9 +219,9 @@ function makeConfirmedBookingWithRooms(
 
 // STEP 17: a discount/pricing-tier row. Shared across every file in
 // tests/Feature/Discount/.
-function makeDiscount(string $name = 'Tier', int $minNights = 2, float $percentOff = 10): \App\Models\Discount
+function makeDiscount(string $name = 'Tier', int $minNights = 2, float $percentOff = 10): Discount
 {
-    return \App\Models\Discount::create([
+    return Discount::create([
         'name' => $name,
         'min_nights' => $minNights,
         'percent_off' => $percentOff,

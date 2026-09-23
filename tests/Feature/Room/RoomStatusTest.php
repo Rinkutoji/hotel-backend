@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Employee;
 use App\Models\Room;
 use App\Models\RoomStatusLog;
 
@@ -7,7 +8,7 @@ use App\Models\RoomStatusLog;
 
 test('a room can transition from available to maintenance', function () {
     $type = makeRoomType();
-    $room = Room::create(['room_number' => 'T1', 'room_type_id' => $type->id, 'floor' => 1]);
+    $room = Room::create(['room_number' => 'T1', 'room_type_id' => $type->id, 'floor' => 1, 'building_id' => makeBuilding()->id]);
     $token = loginAsEmployee($this, 'admin-t1@example.com', 'admin');
 
     $response = $this->withHeader('Authorization', "Bearer {$token}")
@@ -19,7 +20,7 @@ test('a room can transition from available to maintenance', function () {
 
 test('a room can transition from maintenance back to available', function () {
     $type = makeRoomType();
-    $room = Room::create(['room_number' => 'T2', 'room_type_id' => $type->id, 'floor' => 1]);
+    $room = Room::create(['room_number' => 'T2', 'room_type_id' => $type->id, 'floor' => 1, 'building_id' => makeBuilding()->id]);
     $room->status = 'maintenance';
     $room->save();
     $token = loginAsEmployee($this, 'admin-t2@example.com', 'admin');
@@ -38,7 +39,7 @@ test('a room can transition from cleaning to maintenance', function () {
     // how the starting state might be reached. See
     // docs/STEP-07-ROOM-PLAN.md §2.
     $type = makeRoomType();
-    $room = Room::create(['room_number' => 'T3', 'room_type_id' => $type->id, 'floor' => 1]);
+    $room = Room::create(['room_number' => 'T3', 'room_type_id' => $type->id, 'floor' => 1, 'building_id' => makeBuilding()->id]);
     $room->status = 'cleaning';
     $room->save();
     $token = loginAsEmployee($this, 'admin-t3@example.com', 'admin');
@@ -54,7 +55,7 @@ test('a room can transition from cleaning to maintenance', function () {
 
 test('a room cannot transition from available directly to occupied - no such endpoint exists', function () {
     $type = makeRoomType();
-    $room = Room::create(['room_number' => 'T4', 'room_type_id' => $type->id, 'floor' => 1]);
+    $room = Room::create(['room_number' => 'T4', 'room_type_id' => $type->id, 'floor' => 1, 'building_id' => makeBuilding()->id]);
     $token = loginAsEmployee($this, 'admin-t4@example.com', 'admin');
 
     $this->withHeader('Authorization', "Bearer {$token}")
@@ -64,7 +65,7 @@ test('a room cannot transition from available directly to occupied - no such end
 
 test('the available endpoint rejects a room that is not currently in maintenance', function () {
     $type = makeRoomType();
-    $room = Room::create(['room_number' => 'T5', 'room_type_id' => $type->id, 'floor' => 1]);
+    $room = Room::create(['room_number' => 'T5', 'room_type_id' => $type->id, 'floor' => 1, 'building_id' => makeBuilding()->id]);
     // Room starts 'available' already - calling ".../status/available"
     // again is not a valid transition (there's no available->available
     // rule), and importantly, occupied/reserved/cleaning also can't
@@ -81,7 +82,7 @@ test('the available endpoint rejects a room that is not currently in maintenance
 
 test('the maintenance endpoint rejects a room that is occupied or reserved', function () {
     $type = makeRoomType();
-    $room = Room::create(['room_number' => 'T6', 'room_type_id' => $type->id, 'floor' => 1]);
+    $room = Room::create(['room_number' => 'T6', 'room_type_id' => $type->id, 'floor' => 1, 'building_id' => makeBuilding()->id]);
     $room->status = 'occupied';
     $room->save();
     $token = loginAsEmployee($this, 'admin-t6@example.com', 'admin');
@@ -95,7 +96,7 @@ test('the maintenance endpoint rejects a room that is occupied or reserved', fun
 
 test('a status transition creates a room_status_logs entry with the expected fields', function () {
     $type = makeRoomType();
-    $room = Room::create(['room_number' => 'T7', 'room_type_id' => $type->id, 'floor' => 1]);
+    $room = Room::create(['room_number' => 'T7', 'room_type_id' => $type->id, 'floor' => 1, 'building_id' => makeBuilding()->id]);
     $token = loginAsEmployee($this, 'admin-t7@example.com', 'admin');
 
     $this->withHeader('Authorization', "Bearer {$token}")
@@ -113,21 +114,21 @@ test('a status transition creates a room_status_logs entry with the expected fie
 
 test('changed_by records the actual employee who made the change', function () {
     $type = makeRoomType();
-    $room = Room::create(['room_number' => 'T8', 'room_type_id' => $type->id, 'floor' => 1]);
+    $room = Room::create(['room_number' => 'T8', 'room_type_id' => $type->id, 'floor' => 1, 'building_id' => makeBuilding()->id]);
     $token = loginAsEmployee($this, 'admin-t8@example.com', 'admin');
 
     $this->withHeader('Authorization', "Bearer {$token}")
         ->postJson("/api/v1/staff/rooms/{$room->id}/status/maintenance");
 
     $log = RoomStatusLog::where('room_id', $room->id)->first();
-    $employee = \App\Models\Employee::where('email', 'admin-t8@example.com')->first();
+    $employee = Employee::where('email', 'admin-t8@example.com')->first();
 
     expect($log->changed_by)->toBe($employee->id);
 });
 
 test('an invalid transition attempt does not create a log entry', function () {
     $type = makeRoomType();
-    $room = Room::create(['room_number' => 'T9', 'room_type_id' => $type->id, 'floor' => 1]);
+    $room = Room::create(['room_number' => 'T9', 'room_type_id' => $type->id, 'floor' => 1, 'building_id' => makeBuilding()->id]);
     $room->status = 'occupied';
     $room->save();
     $token = loginAsEmployee($this, 'admin-t9@example.com', 'admin');
@@ -142,7 +143,7 @@ test('an invalid transition attempt does not create a log entry', function () {
 
 test('a receptionist CAN change room status, unlike create/update/delete', function () {
     $type = makeRoomType();
-    $room = Room::create(['room_number' => 'T10', 'room_type_id' => $type->id, 'floor' => 1]);
+    $room = Room::create(['room_number' => 'T10', 'room_type_id' => $type->id, 'floor' => 1, 'building_id' => makeBuilding()->id]);
     $token = loginAsEmployee($this, 'recep-status@example.com', 'receptionist');
 
     $this->withHeader('Authorization', "Bearer {$token}")
@@ -152,7 +153,7 @@ test('a receptionist CAN change room status, unlike create/update/delete', funct
 
 test('a manager can change room status', function () {
     $type = makeRoomType();
-    $room = Room::create(['room_number' => 'T11', 'room_type_id' => $type->id, 'floor' => 1]);
+    $room = Room::create(['room_number' => 'T11', 'room_type_id' => $type->id, 'floor' => 1, 'building_id' => makeBuilding()->id]);
     $token = loginAsEmployee($this, 'mgr-status@example.com', 'manager');
 
     $this->withHeader('Authorization', "Bearer {$token}")
@@ -162,7 +163,7 @@ test('a manager can change room status', function () {
 
 test('a customer cannot change room status', function () {
     $type = makeRoomType();
-    $room = Room::create(['room_number' => 'T12', 'room_type_id' => $type->id, 'floor' => 1]);
+    $room = Room::create(['room_number' => 'T12', 'room_type_id' => $type->id, 'floor' => 1, 'building_id' => makeBuilding()->id]);
     $token = loginAsCustomer($this, 'cust-status@example.com');
 
     $this->withHeader('Authorization', "Bearer {$token}")
@@ -172,7 +173,7 @@ test('a customer cannot change room status', function () {
 
 test('an unauthenticated request to a status-change route is rejected with 401', function () {
     $type = makeRoomType();
-    $room = Room::create(['room_number' => 'T13', 'room_type_id' => $type->id, 'floor' => 1]);
+    $room = Room::create(['room_number' => 'T13', 'room_type_id' => $type->id, 'floor' => 1, 'building_id' => makeBuilding()->id]);
 
     $this->postJson("/api/v1/staff/rooms/{$room->id}/status/maintenance")->assertStatus(401);
 });

@@ -7,8 +7,8 @@ use App\Models\Room;
 
 test('a guest can list rooms without authentication', function () {
     $type = makeRoomType();
-    Room::create(['room_number' => '101', 'room_type_id' => $type->id, 'floor' => 1]);
-    Room::create(['room_number' => '102', 'room_type_id' => $type->id, 'floor' => 1]);
+    Room::create(['room_number' => '101', 'room_type_id' => $type->id, 'floor' => 1, 'building_id' => makeBuilding()->id]);
+    Room::create(['room_number' => '102', 'room_type_id' => $type->id, 'floor' => 1, 'building_id' => makeBuilding()->id]);
 
     $response = $this->getJson('/api/v1/public/rooms');
 
@@ -18,7 +18,7 @@ test('a guest can list rooms without authentication', function () {
 
 test('a guest can view a single room without authentication', function () {
     $type = makeRoomType();
-    $room = Room::create(['room_number' => '201', 'room_type_id' => $type->id, 'floor' => 2]);
+    $room = Room::create(['room_number' => '201', 'room_type_id' => $type->id, 'floor' => 2, 'building_id' => makeBuilding()->id]);
 
     $response = $this->getJson("/api/v1/public/rooms/{$room->id}");
 
@@ -28,8 +28,8 @@ test('a guest can view a single room without authentication', function () {
 
 test('public room listing includes rooms of any status, not just available', function () {
     $type = makeRoomType();
-    $availableRoom = Room::create(['room_number' => '301', 'room_type_id' => $type->id, 'floor' => 3]);
-    $maintenanceRoom = Room::create(['room_number' => '302', 'room_type_id' => $type->id, 'floor' => 3]);
+    $availableRoom = Room::create(['room_number' => '301', 'room_type_id' => $type->id, 'floor' => 3, 'building_id' => makeBuilding()->id]);
+    $maintenanceRoom = Room::create(['room_number' => '302', 'room_type_id' => $type->id, 'floor' => 3, 'building_id' => makeBuilding()->id]);
     $maintenanceRoom->status = 'maintenance';
     $maintenanceRoom->save();
 
@@ -53,8 +53,8 @@ test('public room listing includes rooms of any status, not just available', fun
 
 test('a soft-deleted room is excluded from the public list', function () {
     $type = makeRoomType();
-    Room::create(['room_number' => '401', 'room_type_id' => $type->id, 'floor' => 4]);
-    $deleted = Room::create(['room_number' => '402', 'room_type_id' => $type->id, 'floor' => 4]);
+    Room::create(['room_number' => '401', 'room_type_id' => $type->id, 'floor' => 4, 'building_id' => makeBuilding()->id]);
+    $deleted = Room::create(['room_number' => '402', 'room_type_id' => $type->id, 'floor' => 4, 'building_id' => makeBuilding()->id]);
     $deleted->delete();
 
     $response = $this->getJson('/api/v1/public/rooms');
@@ -65,7 +65,7 @@ test('a soft-deleted room is excluded from the public list', function () {
 
 test('viewing a soft-deleted room directly returns 404', function () {
     $type = makeRoomType();
-    $room = Room::create(['room_number' => '501', 'room_type_id' => $type->id, 'floor' => 5]);
+    $room = Room::create(['room_number' => '501', 'room_type_id' => $type->id, 'floor' => 5, 'building_id' => makeBuilding()->id]);
     $room->delete();
 
     $this->getJson("/api/v1/public/rooms/{$room->id}")->assertStatus(404);

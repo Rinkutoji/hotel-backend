@@ -57,28 +57,51 @@ test('customers.email must be unique', function () {
     ]))->toThrow(QueryException::class);
 });
 
-// rooms.room_number has NO database-level UNIQUE constraint - it was
-// intentionally dropped in migration 2025_02_04_000001 so that a
-// soft-deleted room's number can be reused by a new active room.
-// Uniqueness among active rows is enforced at the validation layer
-// (StoreRequest / UpdateRequest) via Rule::unique()->whereNull('deleted_at').
-test('rooms.room_number has no DB-level unique constraint (soft-delete friendly)', function () {
+// rooms.room_number is unique PER BUILDING via the composite
+// UNIQUE(building_id, room_number) added in migration 2025_03_01_000003.
+// The global unique(room_number) was dropped back in 2025_02_04_000001, so
+// the same number is allowed in DIFFERENT buildings - which is how a
+// soft-deleted room's number can still be reused (in another building).
+// Within ONE building the composite index INCLUDES soft-deleted rows, so
+// two live rows with the same number collide. Uniqueness among active rows
+// is additionally enforced at the validation layer (StoreRequest /
+// UpdateRequest).
+test('rooms.room_number is unique per building (soft-delete friendly)', function () {
     $typeId = DB::table('room_types')->insertGetId([
         'name' => 'Standard', 'base_price' => 100,
         'created_at' => now(), 'updated_at' => now(),
     ]);
 
-    DB::table('rooms')->insert([
-        'room_number' => '101', 'room_type_id' => $typeId, 'floor' => 1,
+    // The MAIN building is seeded by migration 2025_03_01_000003.
+    $mainBuildingId = DB::table('buildings')->where('code', 'MAIN')->value('id');
+
+    $wingBuildingId = DB::table('buildings')->insertGetId([
+        'property_id' => DB::table('properties')->where('code', 'MAIN')->value('id'),
+        'name' => 'Wing B', 'code' => 'WING-B',
         'created_at' => now(), 'updated_at' => now(),
     ]);
 
-    // A second row with the same room_number should NOT throw at the DB
-    // level - no UNIQUE index exists any more.
     DB::table('rooms')->insert([
         'room_number' => '101', 'room_type_id' => $typeId, 'floor' => 1,
+        'building_id' => $mainBuildingId,
         'created_at' => now(), 'updated_at' => now(),
     ]);
+
+    // The same number in a DIFFERENT building succeeds - uniqueness is
+    // scoped per building.
+    DB::table('rooms')->insert([
+        'room_number' => '101', 'room_type_id' => $typeId, 'floor' => 1,
+        'building_id' => $wingBuildingId,
+        'created_at' => now(), 'updated_at' => now(),
+    ]);
+
+    // The same number TWICE IN THE SAME building violates the composite
+    // UNIQUE(building_id, room_number).
+    expect(fn () => DB::table('rooms')->insert([
+        'room_number' => '101', 'room_type_id' => $typeId, 'floor' => 1,
+        'building_id' => $mainBuildingId,
+        'created_at' => now(), 'updated_at' => now(),
+    ]))->toThrow(QueryException::class);
 
     expect(DB::table('rooms')->where('room_number', '101')->count())->toBe(2);
 });
@@ -117,6 +140,7 @@ test('booking_rooms prevents the same room being added twice to the same booking
     ]);
     $roomId = DB::table('rooms')->insertGetId([
         'room_number' => '201', 'room_type_id' => $typeId, 'floor' => 2,
+        'building_id' => DB::table('buildings')->where('code', 'MAIN')->value('id'),
         'created_at' => now(), 'updated_at' => now(),
     ]);
     $bookingId = DB::table('bookings')->insertGetId([
@@ -141,6 +165,7 @@ test('booking_rooms prevents the same room being added twice to the same booking
 test('rooms cannot reference a non-existent room_type_id', function () {
     expect(fn () => DB::table('rooms')->insert([
         'room_number' => '999', 'room_type_id' => 999999, 'floor' => 1,
+        'building_id' => DB::table('buildings')->where('code', 'MAIN')->value('id'),
         'created_at' => now(), 'updated_at' => now(),
     ]))->toThrow(QueryException::class);
 });
@@ -156,6 +181,7 @@ test('a room cannot be deleted while it has booking history (restrictOnDelete)',
     ]);
     $roomId = DB::table('rooms')->insertGetId([
         'room_number' => '301', 'room_type_id' => $typeId, 'floor' => 3,
+        'building_id' => DB::table('buildings')->where('code', 'MAIN')->value('id'),
         'created_at' => now(), 'updated_at' => now(),
     ]);
     $bookingId = DB::table('bookings')->insertGetId([
@@ -232,12 +258,15 @@ test('a booking correctly relates to multiple rooms via booking_rooms', function
         'name' => 'Family', 'base_price' => 250,
         'created_at' => now(), 'updated_at' => now(),
     ]);
+    $buildingId = DB::table('buildings')->where('code', 'MAIN')->value('id');
     $room1 = DB::table('rooms')->insertGetId([
         'room_number' => '401', 'room_type_id' => $typeId, 'floor' => 4,
+        'building_id' => $buildingId,
         'created_at' => now(), 'updated_at' => now(),
     ]);
     $room2 = DB::table('rooms')->insertGetId([
         'room_number' => '402', 'room_type_id' => $typeId, 'floor' => 4,
+        'building_id' => $buildingId,
         'created_at' => now(), 'updated_at' => now(),
     ]);
     $bookingId = DB::table('bookings')->insertGetId([
