@@ -18,6 +18,7 @@ class Employee extends Authenticatable
         'phone',
         'role',
         'department_id',
+        'property_id',
         'status',
     ];
 
@@ -30,5 +31,10 @@ class Employee extends Authenticatable
         return [
             'password' => 'hashed',
         ];
+    }
+
+    public function property()
+    {
+        return $this->belongsTo(Property::class);
     }
 }
