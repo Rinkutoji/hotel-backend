@@ -11,6 +11,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class BookingService
 {
@@ -156,17 +157,17 @@ class BookingService
             // the frontend - derived from the locked rows.
             $propertyIds = $rooms->pluck('building.property_id')->unique();
             if ($propertyIds->count() !== 1) {
-                throw new BusinessRuleException('All rooms in a booking must belong to the same property.');
+                throw ValidationException::withMessages(['rooms' => 'All rooms in a booking must belong to the same property.']);
             }
             $actualPropertyId = (int) $propertyIds->first();
 
             if (isset($data['property_id']) && (int) $data['property_id'] !== $actualPropertyId) {
-                throw new BusinessRuleException('The selected rooms do not belong to the selected property.');
+                throw ValidationException::withMessages(['property_id' => 'The selected rooms do not belong to the selected property.']);
             }
             if (isset($data['building_id'])) {
                 $buildingIds = $rooms->pluck('building_id')->unique();
                 if ($buildingIds->count() !== 1 || (int) $buildingIds->first() !== (int) $data['building_id']) {
-                    throw new BusinessRuleException('The selected rooms do not belong to the selected building.');
+                    throw ValidationException::withMessages(['building_id' => 'The selected rooms do not belong to the selected building.']);
                 }
             }
 
