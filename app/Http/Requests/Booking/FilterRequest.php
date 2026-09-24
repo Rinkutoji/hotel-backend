@@ -13,6 +13,8 @@ class FilterRequest extends ApiFormRequest
             'from' => ['nullable', 'date'],
             'to' => ['nullable', 'date', 'after_or_equal:from'],
             'search' => ['nullable', 'string', 'max:255'],
+            'property_id' => ['nullable', 'integer', 'exists:properties,id'],
+            'building_id' => ['nullable', 'integer', 'exists:buildings,id'],
         ];
     }
 }

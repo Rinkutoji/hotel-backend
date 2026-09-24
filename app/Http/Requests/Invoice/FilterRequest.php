@@ -14,6 +14,7 @@ class FilterRequest extends ApiFormRequest
             'status' => ['prohibited'],
             'search' => ['nullable', 'string', 'max:255'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
+            'property_id' => ['nullable', 'integer', 'exists:properties,id'],
         ];
     }
 }

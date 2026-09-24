@@ -15,6 +15,7 @@ class FilterRequest extends ApiFormRequest
             // reaches the query. Capped like the room index convention
             // (docs/STEP-10-PAYMENT-PLAN.md §8).
             'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
+            'property_id' => ['nullable', 'integer', 'exists:properties,id'],
         ];
     }
 }

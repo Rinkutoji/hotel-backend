@@ -14,12 +14,13 @@ class AvailabilityRequest extends ApiFormRequest
             'check_out_date' => ['required', 'date', 'after:check_in_date'],
             'rooms' => [
                 'required', 'array', 'min:1',
-                'max:' . config('booking.max_rooms_per_booking', 5),
+                'max:'.config('booking.max_rooms_per_booking', 5),
             ],
             'rooms.*' => [
                 'required', 'integer', 'distinct',
                 Rule::exists('rooms', 'id'),
             ],
+            'property_id' => ['nullable', 'integer', 'exists:properties,id'],
         ];
     }
 }

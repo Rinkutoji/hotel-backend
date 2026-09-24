@@ -41,6 +41,8 @@ class CreateBookingRequest extends ApiFormRequest
                     }
                 },
             ],
+            'property_id' => ['nullable', 'integer', 'exists:properties,id'],
+            'building_id' => ['nullable', 'integer', 'exists:buildings,id'],
         ];
     }
 }
