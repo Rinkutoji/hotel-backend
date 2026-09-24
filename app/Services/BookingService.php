@@ -39,7 +39,7 @@ class BookingService
 
     private const STATUSES_HOLDING = ['pending_payment', 'confirmed', 'checked_in', 'checked_out'];
 
-    public function searchAvailable(string $checkIn, string $checkOut, array $roomIds): Collection
+    public function searchAvailable(string $checkIn, string $checkOut, array $roomIds, ?int $propertyId = null): Collection
     {
         $checkInDate = $this->startOfDay($checkIn);
         $checkOutDate = $this->startOfDay($checkOut);
@@ -54,6 +54,13 @@ class BookingService
                 $q->whereNull('deleted_at');
             })
             ->where('status', '!=', 'maintenance')
+            ->when($propertyId, fn ($q) => $q->whereHas('building', fn ($bq) => $bq->where('property_id', $propertyId)))
+            ->whereHas('building', fn ($bq) => $bq
+                ->whereNull('buildings.deleted_at')
+                ->where('buildings.status', 'active')
+                ->whereHas('property', fn ($pq) => $pq
+                    ->whereNull('properties.deleted_at')
+                    ->where('properties.status', 'active')))
             ->whereDoesntHave('bookingRooms', function ($q) use ($checkInDate, $checkOutDate) {
                 $q->whereHas('booking', function ($bq) use ($checkInDate, $checkOutDate) {
                     $bq->whereIn('status', self::STATUSES_HOLDING)
@@ -128,11 +135,12 @@ class BookingService
 
         $this->lastAppliedDiscount = null;
 
-        return DB::transaction(function () use ($customerId, $checkInDate, $checkOutDate, $sortedRoomIds, $nights) {
+        return DB::transaction(function () use ($customerId, $data, $checkInDate, $checkOutDate, $sortedRoomIds, $nights) {
             // 1. Pessimistic row lock on the requested rooms, in ascending
             //    id order. This serializes every booking attempt touching
             //    the same room(s).
             $rooms = Room::whereIn('id', $sortedRoomIds)
+                ->with('building.property')
                 ->orderBy('id')
                 ->lockForUpdate()
                 ->get();
@@ -141,6 +149,32 @@ class BookingService
 
             if (count($roomModels) !== count($sortedRoomIds)) {
                 throw new BusinessRuleException('One or more requested rooms do not exist.');
+            }
+
+            // Property integrity (spec §7.4): every room must share one property,
+            // and any claimed property/building must match. Never trusted from
+            // the frontend - derived from the locked rows.
+            $propertyIds = $rooms->pluck('building.property_id')->unique();
+            if ($propertyIds->count() !== 1) {
+                throw new BusinessRuleException('All rooms in a booking must belong to the same property.');
+            }
+            $actualPropertyId = (int) $propertyIds->first();
+
+            if (isset($data['property_id']) && (int) $data['property_id'] !== $actualPropertyId) {
+                throw new BusinessRuleException('The selected rooms do not belong to the selected property.');
+            }
+            if (isset($data['building_id'])) {
+                $buildingIds = $rooms->pluck('building_id')->unique();
+                if ($buildingIds->count() !== 1 || (int) $buildingIds->first() !== (int) $data['building_id']) {
+                    throw new BusinessRuleException('The selected rooms do not belong to the selected building.');
+                }
+            }
+
+            foreach ($rooms as $room) {
+                if ($room->building === null || $room->building->trashed() || $room->building->status !== 'active'
+                    || $room->building->property === null || $room->building->property->trashed() || $room->building->property->status !== 'active') {
+                    throw new BusinessRuleException('One or more requested rooms are not available for the selected dates.');
+                }
             }
 
             foreach ($sortedRoomIds as $roomId) {
