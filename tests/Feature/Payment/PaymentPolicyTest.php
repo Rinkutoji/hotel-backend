@@ -2,19 +2,19 @@
 
 use App\Models\Customer;
 use App\Models\Employee;
-use App\Models\Payment;
 use App\Policies\PaymentPolicy;
 
 function staffOf(string $role): Employee
 {
     return Employee::create([
-        'name' => ucfirst($role), 'email' => 'policy-' . $role . '@example.com',
+        'name' => ucfirst($role), 'email' => 'policy-'.$role.'@example.com',
         'password' => 'Password123!', 'role' => $role,
+        'property_id' => $role === 'receptionist' ? makeProperty()->id : null,
     ]);
 }
 
 test('only customers can create payments', function () {
-    $policy = new PaymentPolicy();
+    $policy = new PaymentPolicy;
     $customer = Customer::create(['name' => 'C', 'email' => 'policy-cust@example.com', 'password' => 'Password123!']);
 
     expect($policy->create($customer))->toBeTrue();
@@ -24,7 +24,7 @@ test('only customers can create payments', function () {
 });
 
 test('customers can only view their own payment and employees can view any payment', function () {
-    $policy = new PaymentPolicy();
+    $policy = new PaymentPolicy;
     $owner = makeBookingCustomer('policy-owner@example.com');
     $other = makeBookingCustomer('policy-other@example.com');
     $room = makeBookingRoom('POL1', makeRoomType()->id);
@@ -38,7 +38,7 @@ test('customers can only view their own payment and employees can view any payme
 });
 
 test('customers can view a list of their own payments and employees can list all', function () {
-    $policy = new PaymentPolicy();
+    $policy = new PaymentPolicy;
     $customer = makeBookingCustomer('policy-list@example.com');
 
     expect($policy->viewAny($customer))->toBeTrue();
@@ -46,21 +46,24 @@ test('customers can view a list of their own payments and employees can list all
 });
 
 test('only admin, manager and receptionist employees can verify and reject', function () {
-    $policy = new PaymentPolicy();
+    $policy = new PaymentPolicy;
+    $room = makeBookingRoom('POL4', makeRoomType()->id);
+    $booking = makeHoldingBooking(makeBookingCustomer('policy-verify-owner@example.com'), $room, '2026-09-10', '2026-09-12', 'pending_payment');
+    $payment = makePaymentFor($booking);
 
     foreach (['admin', 'manager', 'receptionist'] as $role) {
         $staff = staffOf($role);
-        expect($policy->verify($staff))->toBeTrue("employee role {$role} should be allowed to verify");
-        expect($policy->reject($staff))->toBeTrue("employee role {$role} should be allowed to reject");
+        expect($policy->verify($staff, $payment))->toBeTrue("employee role {$role} should be allowed to verify");
+        expect($policy->reject($staff, $payment))->toBeTrue("employee role {$role} should be allowed to reject");
     }
 
     $customer = makeBookingCustomer('policy-verify-cust@example.com');
-    expect($policy->verify($customer))->toBeFalse();
-    expect($policy->reject($customer))->toBeFalse();
+    expect($policy->verify($customer, $payment))->toBeFalse();
+    expect($policy->reject($customer, $payment))->toBeFalse();
 });
 
 test('a non-owner customer is denied on every payment operation', function () {
-    $policy = new PaymentPolicy();
+    $policy = new PaymentPolicy;
     $owner = makeBookingCustomer('policy-op-owner@example.com');
     $intruder = makeBookingCustomer('policy-op-intruder@example.com');
     $room = makeBookingRoom('POL2', makeRoomType()->id);
@@ -73,7 +76,7 @@ test('a non-owner customer is denied on every payment operation', function () {
 });
 
 test('uploading a receipt is customer-owned only', function () {
-    $policy = new PaymentPolicy();
+    $policy = new PaymentPolicy;
     $owner = makeBookingCustomer('policy-upload-owner@example.com');
     $room = makeBookingRoom('POL3', makeRoomType()->id);
     $booking = makeHoldingBooking($owner, $room, '2026-09-10', '2026-09-12', 'pending_payment');

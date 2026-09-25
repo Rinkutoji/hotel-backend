@@ -36,9 +36,18 @@ uses(RefreshDatabase::class)->in('Feature');
 
 function loginAsEmployee(TestCase $testCase, string $email, string $role): string
 {
-    Employee::create([
+    $payload = [
         'name' => ucfirst($role), 'email' => $email, 'password' => 'Password123!', 'role' => $role,
-    ]);
+    ];
+
+    // Location feature (Task 20): production receptionists must carry a
+    // property assignment (Task 16 validation). Helper receptionists get
+    // MAIN so property-scoped policies keep existing allow-assertions green.
+    if ($role === 'receptionist') {
+        $payload['property_id'] = makeProperty()->id;
+    }
+
+    Employee::create($payload);
 
     return $testCase->postJson('/api/v1/admin/auth/login', [
         'email' => $email, 'password' => 'Password123!',

@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Models\Booking;
 use App\Models\Customer;
 use App\Models\Employee;
 
@@ -22,14 +23,14 @@ class BookingPolicy
         return false;
     }
 
-    public function view($user, \App\Models\Booking $booking): bool
+    public function view($user, Booking $booking): bool
     {
         if ($user instanceof Customer) {
             return $booking->customer_id === $user->id;
         }
 
         if ($user instanceof Employee) {
-            return true;
+            return $this->receptionistConstraintAllows($user, $booking);
         }
 
         return false;
@@ -40,43 +41,72 @@ class BookingPolicy
         return $user instanceof Customer;
     }
 
-    public function confirm($user): bool
+    public function confirm($user, Booking $booking): bool
     {
         if ($user instanceof Employee) {
-            return in_array($user->role, ['admin', 'manager', 'receptionist'], true);
+            if (! in_array($user->role, ['admin', 'manager', 'receptionist'], true)) {
+                return false;
+            }
+
+            return $this->receptionistConstraintAllows($user, $booking);
         }
 
         return false;
     }
 
-    public function cancel($user, \App\Models\Booking $booking): bool
+    public function cancel($user, Booking $booking): bool
     {
         if ($user instanceof Customer) {
             return $booking->customer_id === $user->id;
         }
 
         if ($user instanceof Employee) {
-            return in_array($user->role, ['admin', 'manager', 'receptionist'], true);
+            if (! in_array($user->role, ['admin', 'manager', 'receptionist'], true)) {
+                return false;
+            }
+
+            return $this->receptionistConstraintAllows($user, $booking);
         }
 
         return false;
     }
 
-    public function checkIn($user): bool
+    public function checkIn($user, Booking $booking): bool
     {
         if ($user instanceof Employee) {
-            return in_array($user->role, ['admin', 'manager', 'receptionist'], true);
+            if (! in_array($user->role, ['admin', 'manager', 'receptionist'], true)) {
+                return false;
+            }
+
+            return $this->receptionistConstraintAllows($user, $booking);
         }
 
         return false;
     }
 
-    public function checkOut($user): bool
+    public function checkOut($user, Booking $booking): bool
     {
         if ($user instanceof Employee) {
-            return in_array($user->role, ['admin', 'manager', 'receptionist'], true);
+            if (! in_array($user->role, ['admin', 'manager', 'receptionist'], true)) {
+                return false;
+            }
+
+            return $this->receptionistConstraintAllows($user, $booking);
         }
 
         return false;
+    }
+
+    private function receptionistConstraintAllows(Employee $employee, Booking $booking): bool
+    {
+        if ($employee->role !== 'receptionist') {
+            return true;
+        }
+
+        if ($employee->property_id === null) {
+            return false;
+        }
+
+        return $booking->hasAllRoomsInProperty($employee->property_id);
     }
 }

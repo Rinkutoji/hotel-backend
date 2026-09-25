@@ -96,4 +96,16 @@ class Booking extends Model
     {
         return $this->bookingRooms()->with('room.building')->first()?->room?->building?->property_id;
     }
+
+    /**
+     * True when every booked room's building belongs to $propertyId.
+     * Multi-room bookings are valid only when ALL rooms match (spec §8.1);
+     * buildings.property_id is NOT NULL, so `!=` cannot miss NULL rows.
+     */
+    public function hasAllRoomsInProperty(int $propertyId): bool
+    {
+        return ! $this->bookingRooms()
+            ->whereHas('room.building', fn ($q) => $q->where('property_id', '!=', $propertyId))
+            ->exists();
+    }
 }

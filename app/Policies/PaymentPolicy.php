@@ -27,7 +27,7 @@ class PaymentPolicy
         }
 
         if ($user instanceof Employee) {
-            return true;
+            return $this->receptionistConstraintAllows($user, $payment);
         }
 
         return false;
@@ -56,25 +56,33 @@ class PaymentPolicy
         }
 
         if ($user instanceof Employee) {
-            return true;
+            return $this->receptionistConstraintAllows($user, $payment);
         }
 
         return false;
     }
 
-    public function verify($user): bool
+    public function verify($user, Payment $payment): bool
     {
         if ($user instanceof Employee) {
-            return in_array($user->role, ['admin', 'manager', 'receptionist'], true);
+            if (! in_array($user->role, ['admin', 'manager', 'receptionist'], true)) {
+                return false;
+            }
+
+            return $this->receptionistConstraintAllows($user, $payment);
         }
 
         return false;
     }
 
-    public function reject($user): bool
+    public function reject($user, Payment $payment): bool
     {
         if ($user instanceof Employee) {
-            return in_array($user->role, ['admin', 'manager', 'receptionist'], true);
+            if (! in_array($user->role, ['admin', 'manager', 'receptionist'], true)) {
+                return false;
+            }
+
+            return $this->receptionistConstraintAllows($user, $payment);
         }
 
         return false;
@@ -93,5 +101,19 @@ class PaymentPolicy
         }
 
         return false;
+    }
+
+    private function receptionistConstraintAllows(Employee $employee, Payment $payment): bool
+    {
+        if ($employee->role !== 'receptionist') {
+            return true;
+        }
+
+        if ($employee->property_id === null) {
+            return false;
+        }
+
+        return $payment->booking !== null
+            && $payment->booking->hasAllRoomsInProperty($employee->property_id);
     }
 }

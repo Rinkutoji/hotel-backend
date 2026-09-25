@@ -23,7 +23,7 @@ class RoomStatusController extends Controller
      */
     public function toMaintenance(ChangeStatusRequest $request, Room $room, RoomService $service): JsonResponse
     {
-        $this->authorize('changeStatus', Room::class);
+        $this->authorize('changeStatus', $room);
 
         $room = $service->transitionStatus($room, 'maintenance', $request->user(), $request->validated('reason'));
 
@@ -35,7 +35,7 @@ class RoomStatusController extends Controller
      */
     public function toAvailable(ChangeStatusRequest $request, Room $room, RoomService $service): JsonResponse
     {
-        $this->authorize('changeStatus', Room::class);
+        $this->authorize('changeStatus', $room);
 
         $room = $service->transitionStatus($room, 'available', $request->user(), $request->validated('reason'));
 

@@ -3,6 +3,7 @@
 namespace App\Policies;
 
 use App\Models\Employee;
+use App\Models\Room;
 
 /**
  * Auto-discovered by Laravel's standard App\Policies\{Model}Policy
@@ -17,8 +18,13 @@ class RoomPolicy
         return true;
     }
 
-    public function view(Employee $employee): bool
+    public function view(Employee $employee, Room $room): bool
     {
+        if ($employee->role === 'receptionist') {
+            return $employee->property_id !== null
+                && $employee->property_id === $room->building?->property_id;
+        }
+
         return true;
     }
 
@@ -43,8 +49,17 @@ class RoomPolicy
      * they can't create/edit/delete room records themselves. Matches
      * the STEP 07 authorization matrix exactly.
      */
-    public function changeStatus(Employee $employee): bool
+    public function changeStatus(Employee $employee, Room $room): bool
     {
-        return in_array($employee->role, ['admin', 'manager', 'receptionist'], true);
+        if (! in_array($employee->role, ['admin', 'manager', 'receptionist'], true)) {
+            return false;
+        }
+
+        if ($employee->role === 'receptionist') {
+            return $employee->property_id !== null
+                && $employee->property_id === $room->building?->property_id;
+        }
+
+        return true;
     }
 }
