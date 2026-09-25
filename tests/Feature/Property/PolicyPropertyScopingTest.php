@@ -119,6 +119,20 @@ test('receptionist is denied every lifecycle action on a booking spanning proper
     expect($policy->cancel($this->receptionist, $booking))->toBeFalse();
 });
 
+test('receptionist is denied a cross-property booking whose building was soft-deleted', function () {
+    $policy = app(BookingPolicy::class);
+    $paymentPolicy = app(PaymentPolicy::class);
+    $this->westBuilding->delete();
+
+    $booking = $this->westBooking;
+
+    expect($policy->view($this->receptionist, $booking))->toBeFalse();
+    expect($policy->confirm($this->receptionist, $booking))->toBeFalse();
+    expect($policy->cancel($this->receptionist, $booking))->toBeFalse();
+    expect($paymentPolicy->view($this->receptionist, $this->westPayment))->toBeFalse();
+    expect($paymentPolicy->verify($this->receptionist, $this->westPayment))->toBeFalse();
+});
+
 test('receptionist without property assignment fails closed on booking view', function () {
     $policy = app(BookingPolicy::class);
 

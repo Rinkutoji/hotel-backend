@@ -101,11 +101,15 @@ class Booking extends Model
      * True when every booked room's building belongs to $propertyId.
      * Multi-room bookings are valid only when ALL rooms match (spec §8.1);
      * buildings.property_id is NOT NULL, so `!=` cannot miss NULL rows.
+     * withTrashed on both hops keeps soft-deleted rooms/buildings visible
+     * so a cross-property room whose building was soft-deleted after
+     * booking still fails closed instead of vanishing from the check.
      */
     public function hasAllRoomsInProperty(int $propertyId): bool
     {
         return ! $this->bookingRooms()
-            ->whereHas('room.building', fn ($q) => $q->where('property_id', '!=', $propertyId))
+            ->whereHas('room', fn ($q) => $q->withTrashed()
+                ->whereHas('building', fn ($b) => $b->withTrashed()->where('property_id', '!=', $propertyId)))
             ->exists();
     }
 }
