@@ -8,6 +8,7 @@ use App\Http\Requests\Booking\FilterRequest;
 use App\Models\Booking;
 use App\Services\BookingService;
 use App\Support\ApiResponse;
+use App\Support\PropertyScope;
 use Illuminate\Http\JsonResponse;
 
 class BookingController extends Controller
@@ -18,6 +19,16 @@ class BookingController extends Controller
 
         $query = Booking::query()
             ->with(['bookingRooms.room', 'bookingRooms.roomType', 'customer']);
+
+        $propertyId = PropertyScope::effectiveId($request->user(), $request->validated('property_id'));
+
+        if ($propertyId !== null) {
+            $query->byProperty($propertyId);
+        }
+
+        if ($request->validated('building_id')) {
+            $query->byBuilding((int) $request->validated('building_id'));
+        }
 
         if ($request->filled('status')) {
             $query->where('status', $request->input('status'));

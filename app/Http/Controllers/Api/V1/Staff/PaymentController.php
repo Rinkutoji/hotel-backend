@@ -9,6 +9,7 @@ use App\Http\Requests\Payment\RejectPaymentRequest;
 use App\Models\Payment;
 use App\Services\PaymentService;
 use App\Support\ApiResponse;
+use App\Support\PropertyScope;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -25,6 +26,12 @@ class PaymentController extends Controller
         $this->authorize('viewAny', Payment::class);
 
         $query = Payment::query()->with('booking.customer');
+
+        $propertyId = PropertyScope::effectiveId($request->user(), $request->validated('property_id'));
+
+        if ($propertyId !== null) {
+            $query->byProperty($propertyId);
+        }
 
         if ($request->validated('status')) {
             $query->where('status', $request->validated('status'));

@@ -9,6 +9,7 @@ use App\Http\Requests\Room\UpdateRequest;
 use App\Models\Room;
 use App\Services\RoomService;
 use App\Support\ApiResponse;
+use App\Support\PropertyScope;
 use Illuminate\Http\JsonResponse;
 
 /**
@@ -23,7 +24,14 @@ class RoomController extends Controller
     {
         $this->authorize('viewAny', Room::class);
 
-        return ApiResponse::paginated($service->paginate($request->validated()));
+        $filters = $request->validated();
+        $propertyId = PropertyScope::effectiveId($request->user(), $filters['property_id'] ?? null);
+
+        if ($propertyId !== null) {
+            $filters['property_id'] = $propertyId;
+        }
+
+        return ApiResponse::paginated($service->paginate($filters));
     }
 
     public function show(Room $room): JsonResponse

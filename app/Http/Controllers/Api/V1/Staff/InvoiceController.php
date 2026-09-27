@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Invoice\FilterRequest;
 use App\Models\Invoice;
 use App\Support\ApiResponse;
+use App\Support\PropertyScope;
 use Illuminate\Http\JsonResponse;
 
 /**
@@ -20,6 +21,12 @@ class InvoiceController extends Controller
         $this->authorize('viewAny', Invoice::class);
 
         $query = Invoice::query()->with('payment.booking.customer', 'items');
+
+        $propertyId = PropertyScope::effectiveId($request->user(), $request->validated('property_id'));
+
+        if ($propertyId !== null) {
+            $query->byProperty($propertyId);
+        }
 
         if ($request->filled('search')) {
             $search = $request->input('search');
