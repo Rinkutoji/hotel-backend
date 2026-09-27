@@ -6,14 +6,17 @@ use App\Http\Controllers\Api\V1\Customer\InvoiceController as CustomerInvoiceCon
 use App\Http\Controllers\Api\V1\Customer\PaymentController as CustomerPaymentController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\Public\BookingController as PublicBookingController;
+use App\Http\Controllers\Api\V1\Public\PropertyController as PublicPropertyController;
 use App\Http\Controllers\Api\V1\Public\RoomController as PublicRoomController;
 use App\Http\Controllers\Api\V1\Public\RoomImageController as PublicRoomImageController;
 use App\Http\Controllers\Api\V1\Public\RoomTypeController as PublicRoomTypeController;
 use App\Http\Controllers\Api\V1\Staff\AuthController as StaffAuthController;
 use App\Http\Controllers\Api\V1\Staff\BookingController as StaffBookingController;
+use App\Http\Controllers\Api\V1\Staff\BuildingController;
 use App\Http\Controllers\Api\V1\Staff\DiscountController as StaffDiscountController;
 use App\Http\Controllers\Api\V1\Staff\InvoiceController as StaffInvoiceController;
 use App\Http\Controllers\Api\V1\Staff\PaymentController as StaffPaymentController;
+use App\Http\Controllers\Api\V1\Staff\PropertyController as StaffPropertyController;
 use App\Http\Controllers\Api\V1\Staff\RoomController as StaffRoomController;
 use App\Http\Controllers\Api\V1\Staff\RoomImageController as StaffRoomImageController;
 use App\Http\Controllers\Api\V1\Staff\RoomStatusController;
@@ -55,6 +58,8 @@ Route::prefix('v1')->group(function () {
             Route::get('/', [PublicRoomController::class, 'index']);
             Route::get('/{room}', [PublicRoomController::class, 'show']);
         });
+
+        Route::get('/properties', [PublicPropertyController::class, 'index']);
     });
 
     // Customer authentication - see docs/STEP-04-AUTH-PLAN.md §3.
@@ -171,6 +176,26 @@ Route::prefix('v1')->group(function () {
                 ->middleware('role:admin,manager,receptionist');
             Route::post('/{room}/status/available', [RoomStatusController::class, 'toAvailable'])
                 ->middleware('role:admin,manager,receptionist');
+        });
+
+        // STEP 19 - Property/Building management. View: any staff role.
+        // Write: role:admin (PropertyPolicy/BuildingPolicy re-check inside).
+        Route::prefix('properties')->middleware(['auth:sanctum', 'actor:staff'])->group(function () {
+            Route::get('/', [StaffPropertyController::class, 'index']);
+            Route::post('/', [StaffPropertyController::class, 'store'])->middleware('role:admin');
+            Route::get('/{property}', [StaffPropertyController::class, 'show']);
+            Route::put('/{property}', [StaffPropertyController::class, 'update'])->middleware('role:admin');
+            Route::delete('/{property}', [StaffPropertyController::class, 'destroy'])->middleware('role:admin');
+
+            Route::get('/{property}/buildings', [BuildingController::class, 'index']);
+            Route::post('/{property}/buildings', [BuildingController::class, 'store'])->middleware('role:admin');
+        });
+
+        // Top-level, matching the room-images convention: identified by own id.
+        Route::prefix('buildings')->middleware(['auth:sanctum', 'actor:staff'])->group(function () {
+            Route::get('/{building}', [BuildingController::class, 'show']);
+            Route::put('/{building}', [BuildingController::class, 'update'])->middleware('role:admin');
+            Route::delete('/{building}', [BuildingController::class, 'destroy'])->middleware('role:admin');
         });
 
         // STEP 09 - Staff booking management. View/list: any staff role.
