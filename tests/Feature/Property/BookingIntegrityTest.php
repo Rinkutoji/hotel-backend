@@ -17,10 +17,9 @@ use Carbon\Carbon;
 //     property chain;
 //   - one 201 control (same-property booking with a MATCHING claim);
 //   - availability: active-chain exclusion (no property filter) + the
-//     property filter, which is written with full assertions but chained
-//     with ->skip(...) - PublicBookingController::availability does not
-//     pass property_id to searchAvailable yet (wired in Task 29; un-skip
-//     obligation is ledger-tracked).
+//     property filter (MAIN and WEST directions) - PublicBookingController::availability
+//     passes property_id through to searchAvailable (wired in Task 29) and
+//     is covered here.
 
 function bookingPayload22(Room $roomA, ?Room $roomB = null, array $claims = []): array
 {
@@ -237,4 +236,4 @@ test('availability property filter returns only the claimed property rooms', fun
     $westIds = collect($westFiltered->json('data'))->pluck('id');
     expect($westIds)->toContain($this->westRoom->id);
     expect($westIds)->not->toContain($this->mainRoom->id);
-})->skip('T29: Public BookingController must pass property_id to searchAvailable (currently ignored)');
+});

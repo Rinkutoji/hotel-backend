@@ -23,7 +23,8 @@ class BookingController extends Controller
         $rooms = $service->searchAvailable(
             $data['check_in_date'],
             $data['check_out_date'],
-            $data['rooms']
+            $data['rooms'],
+            $data['property_id'] ?? null
         );
 
         $available = $rooms->map(function ($room) {
