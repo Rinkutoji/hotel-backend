@@ -12,8 +12,9 @@
  * - role=receptionist without property_id in the payload → 422
  *   (required_if is an implicit rule, it runs even on a missing key).
  * - role=admin/manager WITH property_id → 422 (prohibited_unless).
- * - receptionist → admin/manager without property_id → 200; the old
- *   property_id stays on the row (deliberately not asserted here).
+ * - receptionist → admin/manager without property_id → 200; the
+ *   controller clears the stale property assignment (asserted in the
+ *   transition test below).
  */
 
 use App\Models\Employee;
@@ -159,15 +160,16 @@ test('updating a receptionist into an admin without a property assignment succee
         'role' => 'receptionist', 'property_id' => $property->id,
     ]);
 
-    // Partial-update contract: only sent keys are applied; the old
-    // property_id is deliberately NOT asserted on here (it stays on the
-    // row - flagged for a later task).
+    // Partial-update contract: only sent keys are applied. Task 28
+    // normalization: a role change away from receptionist clears the
+    // stale property assignment server-side.
     $this->withHeaders($auth)
         ->putJson("/api/v1/staff/employees/{$receptionist->id}", [
             'name' => 'Transition', 'email' => 'transition@hotel.test', 'role' => 'admin',
         ])
         ->assertStatus(200)
-        ->assertJsonPath('data.role', 'admin');
+        ->assertJsonPath('data.role', 'admin')
+        ->assertJsonPath('data.property_id', null);
 });
 
 test('a receptionist can be re-saved with the same property assignment', function () {

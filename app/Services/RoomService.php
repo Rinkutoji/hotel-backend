@@ -52,6 +52,14 @@ class RoomService
             $query->where('status', $filters['status']);
         }
 
+        if (isset($filters['property_id'])) {
+            $query->whereHas('building', fn ($q) => $q->where('property_id', $filters['property_id']));
+        }
+
+        if (isset($filters['building_id'])) {
+            $query->where('building_id', $filters['building_id']);
+        }
+
         $sort = in_array($filters['sort'] ?? null, self::SORTABLE_FIELDS, true)
             ? $filters['sort']
             : 'room_number';

@@ -131,10 +131,6 @@ test('admin and manager keep unrestricted access over HTTP', function () {
     }
 });
 
-// Phase-4-dependent tests (T27/T28 rooms-list filtering) - full
-// assertions written NOW, skipped until their dependencies land.
-// Un-skip obligations are ledger-tracked.
-
 test('receptionist sees only rooms of their assigned property on the rooms list (tampered property_id is ignored)', function () {
     $res = $this->withHeader('Authorization', "Bearer {$this->token}")
         ->getJson("/api/v1/staff/rooms?property_id={$this->westProperty->id}")
@@ -143,7 +139,7 @@ test('receptionist sees only rooms of their assigned property on the rooms list 
     expect(collect($res->json('data'))->pluck('id'))
         ->toContain($this->mainRoom->id)
         ->not->toContain($this->westRoom->id);
-})->skip('T27/T28: rooms-list property filtering not wired yet');
+});
 
 test("receptionist cannot view another property's detail", function () {
     $this->withHeader('Authorization', "Bearer {$this->token}")
@@ -155,4 +151,4 @@ test('a receptionist with no property assignment fails closed on the rooms list'
     $this->withHeader('Authorization', "Bearer {$this->nullToken}")
         ->getJson('/api/v1/staff/rooms')
         ->assertForbidden();
-})->skip('T27/T28: rooms-list property filtering not wired yet');
+});
