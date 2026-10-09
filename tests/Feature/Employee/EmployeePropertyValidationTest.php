@@ -151,6 +151,24 @@ test('updating a receptionist into a manager rejects a property assignment', fun
         ->assertJsonValidationErrors('property_id');
 });
 
+test('updating a receptionist into an admin rejects a property assignment', function () {
+    $token = loginAsEmployee($this, 'propval-admin-r2a@example.com', 'admin');
+    $auth = ['Authorization' => "Bearer {$token}"];
+    $property = makeProperty();
+    $receptionist = Employee::create([
+        'name' => 'Recep To Admin', 'email' => 'r2a@hotel.test', 'password' => 'P@ssw0rd!',
+        'role' => 'receptionist', 'property_id' => $property->id,
+    ]);
+
+    $this->withHeaders($auth)
+        ->putJson("/api/v1/staff/employees/{$receptionist->id}", [
+            'name' => 'Recep To Admin', 'email' => 'r2a@hotel.test', 'role' => 'admin',
+            'property_id' => $property->id,
+        ])
+        ->assertStatus(422)
+        ->assertJsonValidationErrors('property_id');
+});
+
 test('updating a receptionist into an admin without a property assignment succeeds', function () {
     $token = loginAsEmployee($this, 'propval-admin-transition@example.com', 'admin');
     $auth = ['Authorization' => "Bearer {$token}"];
@@ -170,6 +188,25 @@ test('updating a receptionist into an admin without a property assignment succee
         ->assertStatus(200)
         ->assertJsonPath('data.role', 'admin')
         ->assertJsonPath('data.property_id', null);
+});
+
+test('updating an admin into a receptionist with a valid property assignment succeeds', function () {
+    $token = loginAsEmployee($this, 'propval-admin-a2r@example.com', 'admin');
+    $auth = ['Authorization' => "Bearer {$token}"];
+    $property = makeProperty();
+    $admin = Employee::create([
+        'name' => 'Admin To Recep', 'email' => 'a2r@hotel.test', 'password' => 'P@ssw0rd!',
+        'role' => 'admin',
+    ]);
+
+    $this->withHeaders($auth)
+        ->putJson("/api/v1/staff/employees/{$admin->id}", [
+            'name' => 'Admin To Recep', 'email' => 'a2r@hotel.test', 'role' => 'receptionist',
+            'property_id' => $property->id,
+        ])
+        ->assertStatus(200)
+        ->assertJsonPath('data.role', 'receptionist')
+        ->assertJsonPath('data.property_id', $property->id);
 });
 
 test('a receptionist can be re-saved with the same property assignment', function () {

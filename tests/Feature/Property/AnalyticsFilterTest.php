@@ -238,18 +238,23 @@ test('dashboard guest stats under a property filter keep global first-booking se
 });
 
 test('the dashboard CSV export serves the filtered payload', function () {
-    // Smoke check only (200 + CSV header). The CSV BODY cannot prove
-    // filter threading: the user-WIP DashboardController::flatten() feeds
-    // Csv::fromAssocRows, whose header comes from the FIRST row (the
-    // window row), so later rows' metric/value columns are dropped and
-    // the filtered/unfiltered bodies are byte-identical regardless of
-    // filters (T32 amendment - pre-existing user-WIP defect; the plan
-    // says "flatten() needs no change"; T43 candidate). The dashboard
-    // index test above covers the identical dashboard() call.
-    $this->withHeader('Authorization', "Bearer {$this->token}")
+    // T43: the user-approved flatten() fix made every row share the
+    // section/metric/value shape, so the CSV body can now prove filter
+    // threading (T32 amendment - the pre-fix bodies were byte-identical
+    // because Csv::fromAssocRows derives its header from the first row).
+    $filtered = $this->withHeader('Authorization', "Bearer {$this->token}")
         ->getJson('/api/v1/staff/dashboard/export?from='.$this->from.'&to='.$this->to.'&property_id='.$this->west->id)
         ->assertOk()
         ->assertHeader('Content-Type', 'text/csv; charset=UTF-8');
+    $unfiltered = $this->withHeader('Authorization', "Bearer {$this->token}")
+        ->getJson('/api/v1/staff/dashboard/export?from='.$this->from.'&to='.$this->to)
+        ->assertOk();
+
+    expect($filtered->streamedContent())
+        ->toContain('section,metric,value')
+        ->toContain('inventory,total,3')
+        ->toContain('guests,total,1')
+        ->not->toBe($unfiltered->streamedContent());
 });
 
 test('absent filters equal explicit empty filters', function () {

@@ -153,9 +153,25 @@ test('a soft-deleted room_number can be reused in a different building but not t
         ->assertStatus(422)
         ->assertJsonValidationErrors('room_number');
 
+    $westBuilding = makeBuilding('WEST');
+
     $this->withHeader('Authorization', "Bearer {$token}")
-        ->postJson('/api/v1/staff/rooms', ['room_number' => 'REUSE-1', 'room_type_id' => $type->id, 'floor' => 1, 'building_id' => makeBuilding('WEST')->id])
-        ->assertStatus(201);
+        ->postJson('/api/v1/staff/rooms', ['room_number' => 'REUSE-1', 'room_type_id' => $type->id, 'floor' => 1, 'building_id' => $westBuilding->id])
+        ->assertStatus(201)
+        ->assertJsonPath('data.building_id', $westBuilding->id);
+});
+
+test('an active room_number can be reused in a different building', function () {
+    $type = makeRoomType();
+    Room::create(['room_number' => 'ACT-1', 'room_type_id' => $type->id, 'floor' => 1, 'building_id' => makeBuilding()->id]);
+    $token = loginAsEmployee($this, 'admin-activereuse@example.com', 'admin');
+
+    $westBuilding = makeBuilding('WEST');
+
+    $this->withHeader('Authorization', "Bearer {$token}")
+        ->postJson('/api/v1/staff/rooms', ['room_number' => 'ACT-1', 'room_type_id' => $type->id, 'floor' => 1, 'building_id' => $westBuilding->id])
+        ->assertStatus(201)
+        ->assertJsonPath('data.building_id', $westBuilding->id);
 });
 
 test('creating a room with a non-existent room_type_id fails validation', function () {

@@ -17,9 +17,9 @@ use App\Models\Room;
 // are ALREADY covered end-to-end by
 // tests/Feature/Employee/EmployeePropertyValidationTest.php (Task 16) -
 // same endpoint, same assertions, deliberately not duplicated here.
-// Two Phase-4-dependent tests are written with their full assertions
-// but chained with ->skip(...) until their dependencies land (un-skip
-// obligations are ledger-tracked).
+// Every test in this file runs active against the shipped endpoints -
+// the last ->skip() chains were removed in T26/T28/T29 as each Phase-4
+// dependency landed (ledger-tracked un-skip obligations).
 //
 // NOTE: BookingRoom/Property imports from the task template are omitted -
 // neither class is referenced here (Pint no_unused_imports).
@@ -115,20 +115,32 @@ test('a receptionist with no property assignment fails closed on detail endpoint
         ->assertForbidden();
 });
 
-test('admin and manager keep unrestricted access over HTTP', function () {
-    foreach ([$this->adminToken, $this->managerToken] as $token) {
-        $this->withHeader('Authorization', "Bearer {$token}")
-            ->getJson("/api/v1/staff/rooms/{$this->westRoom->id}")
-            ->assertOk();
+test('admin keeps unrestricted access over HTTP', function () {
+    $this->withHeader('Authorization', "Bearer {$this->adminToken}")
+        ->getJson("/api/v1/staff/rooms/{$this->westRoom->id}")
+        ->assertOk();
 
-        $this->withHeader('Authorization', "Bearer {$token}")
-            ->getJson("/api/v1/staff/bookings/{$this->westBooking->id}")
-            ->assertOk();
+    $this->withHeader('Authorization', "Bearer {$this->adminToken}")
+        ->getJson("/api/v1/staff/bookings/{$this->westBooking->id}")
+        ->assertOk();
 
-        $this->withHeader('Authorization', "Bearer {$token}")
-            ->getJson("/api/v1/staff/payments/{$this->westPayment->id}")
-            ->assertOk();
-    }
+    $this->withHeader('Authorization', "Bearer {$this->adminToken}")
+        ->getJson("/api/v1/staff/payments/{$this->westPayment->id}")
+        ->assertOk();
+});
+
+test('manager keeps unrestricted access over HTTP', function () {
+    $this->withHeader('Authorization', "Bearer {$this->managerToken}")
+        ->getJson("/api/v1/staff/rooms/{$this->westRoom->id}")
+        ->assertOk();
+
+    $this->withHeader('Authorization', "Bearer {$this->managerToken}")
+        ->getJson("/api/v1/staff/bookings/{$this->westBooking->id}")
+        ->assertOk();
+
+    $this->withHeader('Authorization', "Bearer {$this->managerToken}")
+        ->getJson("/api/v1/staff/payments/{$this->westPayment->id}")
+        ->assertOk();
 });
 
 test('receptionist sees only rooms of their assigned property on the rooms list (tampered property_id is ignored)', function () {

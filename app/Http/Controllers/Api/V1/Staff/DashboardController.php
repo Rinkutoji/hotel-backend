@@ -75,7 +75,9 @@ class DashboardController extends Controller
     {
         $rows = [];
 
-        $rows[] = ['section' => 'window', 'window_from' => $data['window']['from'], 'window_to' => $data['window']['to'], 'group_by' => $data['window']['group_by']];
+        $rows[] = ['section' => 'window', 'metric' => 'from', 'value' => $data['window']['from']];
+        $rows[] = ['section' => 'window', 'metric' => 'to', 'value' => $data['window']['to']];
+        $rows[] = ['section' => 'window', 'metric' => 'group_by', 'value' => $data['window']['group_by']];
 
         foreach ($data['inventory'] as $key => $value) {
             $rows[] = ['section' => 'inventory', 'metric' => $key, 'value' => $value];
