@@ -61,6 +61,22 @@ test('admin can create a property with all fields persisted', function () {
     ]);
 });
 
+test('a null currency falls back to the database default', function () {
+    $res = pcrPostProperty($this->adminToken, [
+        'name' => 'No Currency Hotel',
+        'code' => 'NOCUR',
+        'currency' => null,
+    ]);
+
+    $res->assertCreated()
+        ->assertJsonPath('data.currency', 'USD');
+
+    $this->assertDatabaseHas('properties', [
+        'code' => 'NOCUR',
+        'currency' => 'USD',
+    ]);
+});
+
 test('property code must be unique', function () {
     pcrPostProperty($this->adminToken, ['name' => 'Unique One', 'code' => 'UNIQ'])
         ->assertCreated();

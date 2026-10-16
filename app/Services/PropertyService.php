@@ -73,6 +73,12 @@ class PropertyService
 
     public function create(array $data): Property
     {
+        // An explicit NULL would trip the NOT NULL column; dropping the key
+        // lets the DB default 'USD' apply (and keeps the current value on update).
+        if (($data['currency'] ?? null) === null) {
+            unset($data['currency']);
+        }
+
         $property = new Property($data);
         $property->save();
 
@@ -81,6 +87,12 @@ class PropertyService
 
     public function update(Property $property, array $data): Property
     {
+        // An explicit NULL would trip the NOT NULL column; dropping the key
+        // lets the DB default 'USD' apply (and keeps the current value on update).
+        if (($data['currency'] ?? null) === null) {
+            unset($data['currency']);
+        }
+
         $property->fill($data);
         $property->save();
 
